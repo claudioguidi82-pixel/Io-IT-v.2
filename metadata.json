@@ -1,0 +1,6 @@
+{
+  "name": "io IT — Assistente Tecnico",
+  "description": "Prontuario e assistente rapido per tecnici IT: Hardware & Reti, 3CX & VoIP, Zucchetti, Sistemistica Windows, RJ45 visualizer e AI Senior IT.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
