@@ -9,7 +9,12 @@ import NetworkHistorySection from './components/NetworkHistorySection';
 import SeniorItModal from './components/SeniorItModal';
 import VoiceInputBar from './components/VoiceInputBar';
 import ThemeToggle from './components/ThemeToggle';
+import MatrixToggle from './components/MatrixToggle';
 import MatrixRainBackground from './components/MatrixRainBackground';
+import OoklaSpeedtest from './components/OoklaSpeedtest';
+import SystemLogSection from './components/SystemLogSection';
+import LavoriSvoltiSection from './components/LavoriSvoltiSection';
+import { useSystemLogs } from './context/LogContext';
 import { CategoryType } from './types';
 import {
   Wrench,
@@ -29,18 +34,25 @@ import {
   Bot,
   Network,
   Radio,
+  Gauge,
+  Zap,
+  Briefcase,
+  Terminal,
 } from 'lucide-react';
 
 export default function App() {
   // Accordion open states
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    hardware: true,
-    voip: true,
+    hardware: false,
+    voip: false,
     zucchetti: false,
     windows: false,
     dictionary: false,
     notes: false,
     networkHistory: false,
+    tools: false,
+    lavori: false,
+    systemLog: false,
   });
 
   // State to pass subnet from history to calculator
@@ -49,7 +61,8 @@ export default function App() {
   // Global search query
   const [globalSearch, setGlobalSearch] = useState('');
 
-  // AI Senior IT State
+  // AI IO-IT State
+  const { addLog } = useSystemLogs();
   const [modalOpen, setModalOpen] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [currentAnswer, setCurrentAnswer] = useState('');
@@ -90,6 +103,9 @@ export default function App() {
       dictionary: open,
       notes: open,
       networkHistory: open,
+      tools: open,
+      lavori: open,
+      systemLog: open,
     });
   };
 
@@ -104,9 +120,63 @@ export default function App() {
     setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  // Handler for Senior IT AI questions
+  const handleSaveSpeedtestToHistory = (result: any, clientName: string) => {
+    try {
+      const STORAGE_KEY = 'io_it_network_history_v1';
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const audits = saved ? JSON.parse(saved) : [];
+      const newAudit = {
+        id: 'audit-speedtest-' + Date.now(),
+        clientName: clientName || 'Audit Speedtest Rete',
+        location: 'Sede Locale / Gateway',
+        networkType: 'Ufficio PMI',
+        subnet: '192.168.1.0/24',
+        gateway: '192.168.1.1',
+        dnsPrimary: '1.1.1.1',
+        dhcpRange: '.50 - .200',
+        ispInfo: `Speedtest Ookla: ${result.downloadMbps} Mbps DL / ${result.uploadMbps} Mbps UL`,
+        firewallRouter: 'Router / Firewall Gateway',
+        switches: 'Switch LAN Gigabit',
+        vlans: [],
+        avgLatencyMs: result.pingMs,
+        packetLossPercent: result.packetLossPercent || 0,
+        status: result.downloadMbps >= 40 && result.pingMs <= 35 ? 'conforme' : 'warning',
+        keyFindings: `Speedtest completato: Download ${result.downloadMbps} Mbps, Upload ${result.uploadMbps} Mbps, Ping ${result.pingMs} ms, Jitter ${result.jitterMs} ms.`,
+        resolutionNotes: `Banda verificata: Idonea per centralino 3CX e Cloud Zucchetti Infinity (${result.downloadMbps >= 30 ? 'Prestazioni ottimali' : 'Attenzione a saturazione'}).`,
+        analyzedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([newAudit, ...audits]));
+
+      addLog({
+        category: 'SPEEDTEST',
+        level: 'SUCCESS',
+        title: `Speedtest Ookla: ${result.downloadMbps} Mbps DL / ${result.uploadMbps} Mbps UL`,
+        details: `Ping: ${result.pingMs}ms | Jitter: ${result.jitterMs}ms | Server: ${result.server || 'Auto'} | Cliente: ${clientName || 'Audit Rete'}`,
+        rawPayload: result,
+      });
+    } catch (e) {
+      console.error('Error saving speedtest to network history:', e);
+      addLog({
+        category: 'SPEEDTEST',
+        level: 'ERROR',
+        title: 'Errore salvataggio speedtest in storico',
+        details: String(e),
+      });
+    }
+  };
+
+  // Handler for IO-IT AI questions
   const handleAskSeniorIt = async (q: string) => {
     if (!q.trim()) return;
+
+    const startTime = performance.now();
+    addLog({
+      category: 'QUERY',
+      level: 'INFO',
+      title: `Query IO-IT: "${q.length > 55 ? q.slice(0, 55) + '...' : q}"`,
+      details: 'Interrogazione assistente tecnico avviata da prompt operatore.',
+      rawPayload: { question: q, timestamp: new Date().toISOString() },
+    });
 
     setCurrentQuestion(q);
     setIsAiLoading(true);
@@ -121,6 +191,7 @@ export default function App() {
 
       if (res.ok) {
         const data = await res.json();
+        const durationMs = Math.round(performance.now() - startTime);
         setCurrentAnswer(data.answer);
         setAiSource(data.source || 'gemini-3.8-flash');
         setInlineAiBox({
@@ -128,10 +199,23 @@ export default function App() {
           question: q,
           answer: data.answer,
         });
+
+        addLog({
+          category: 'DIAGNOSI',
+          level: 'SUCCESS',
+          title: `Risposta IO-IT generata con successo (${data.source || 'gemini-3.8-flash'})`,
+          details: `Diagnosi generata in ${durationMs}ms con ${data.answer?.length || 0} caratteri.`,
+          durationMs,
+          rawPayload: {
+            source: data.source,
+            answerPreview: data.answer?.slice(0, 300),
+          },
+        });
       } else {
-        throw new Error('Errore durante la risposta.');
+        throw new Error(`Errore risposta API HTTP ${res.status}`);
       }
-    } catch (err) {
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
       const fallback = `1. Verifica la connettività fisica dei cavi e il ping verso l'apparato.\n2. Controlla lo stato dei servizi in services.msc o in console 3CX/Zucchetti.\n3. Controlla se il problema riguarda una singola postazione o tutta l'infrastruttura.`;
       setCurrentAnswer(fallback);
       setAiSource('knowledge-engine');
@@ -139,6 +223,15 @@ export default function App() {
         visible: true,
         question: q,
         answer: fallback,
+      });
+
+      addLog({
+        category: 'DIAGNOSI',
+        level: 'WARN',
+        title: 'Fallback Knowledge Engine attivato',
+        details: `Causa: ${err?.message || 'Servizio offline'}. Procedura tecnica locale erogata per continuità operativa.`,
+        durationMs,
+        rawPayload: { error: String(err), fallbackText: fallback },
       });
     } finally {
       setIsAiLoading(false);
@@ -156,6 +249,14 @@ export default function App() {
 
     setNewNotePayload({ title, solution, category: cat });
     setOpenSections((prev) => ({ ...prev, notes: true }));
+
+    addLog({
+      category: 'NOTE',
+      level: 'SUCCESS',
+      title: `Nota tecnica salvata da IO-IT`,
+      details: `Titolo: "${title}" | Categoria assegnata: [${cat.toUpperCase()}]`,
+      rawPayload: { title, solutionPreview: solution.slice(0, 160), category: cat },
+    });
   };
 
   // Auto-expand sections if globalSearch matches keywords
@@ -163,6 +264,7 @@ export default function App() {
     if (globalSearch.trim().length > 2) {
       const q = globalSearch.toLowerCase();
       setOpenSections({
+        tools: q.includes('speed') || q.includes('ookla') || q.includes('banda') || q.includes('velocit') || q.includes('ping') || q.includes('mbps') || q.includes('tool'),
         hardware: q.includes('cavo') || q.includes('rj45') || q.includes('stampant') || q.includes('subnet') || q.includes('rete') || q.includes('ip'),
         voip: q.includes('3cx') || q.includes('voip') || q.includes('telef') || q.includes('sbc') || q.includes('yealink'),
         zucchetti: q.includes('zucchetti') || q.includes('infinity') || q.includes('ad hoc') || q.includes('tomcat') || q.includes('hr'),
@@ -170,73 +272,94 @@ export default function App() {
         dictionary: q.includes('dizionario') || q.includes('poe') || q.includes('vlan') || q.includes('nat'),
         notes: q.includes('nota') || q.includes('appunt'),
         networkHistory: q.includes('storico') || q.includes('audit') || q.includes('analizz') || q.includes('vlan') || q.includes('isp') || q.includes('tim') || q.includes('fastweb') || q.includes('fortigate'),
+        lavori: q.includes('lavor') || q.includes('rapport') || q.includes('client') || q.includes('ore') || q.includes('commess') || q.includes('assistenza') || q.includes('formazione') || q.includes('preventivo') || q.includes('vendita') || q.includes('attivazione'),
+        systemLog: q.includes('log') || q.includes('console') || q.includes('debug') || q.includes('terminal'),
       });
     }
   }, [globalSearch]);
 
   return (
     <div className="relative min-h-screen font-sans pb-36 transition-colors duration-200 overflow-x-hidden
-      bg-slate-100 text-slate-800
-      dark:bg-[#0b132b] dark:text-[#f8f9fa]">
+      bg-[#f8f9fa] text-slate-800
+      dark:bg-[#050b07] dark:text-[#e5fbee]">
       {/* Animated Matrix Digital Rain Canvas Background */}
       <MatrixRainBackground />
 
+      {/* Top Google-style colored bar in Light Mode / Matrix neon glow line in Dark Mode */}
+      <div className="h-1 w-full bg-gradient-to-r from-[#4285f4] via-[#ea4335] via-[#fbbc04] to-[#34a853] dark:from-[#00ff66]/30 dark:via-[#00ff66] dark:to-[#00ff66]/30" />
+
       {/* Top Main Header */}
-      <header className="sticky top-0 z-30 backdrop-blur-md transition-colors px-4 py-3 sm:px-6 border-b
-        bg-white/95 border-slate-200 shadow-sm
-        dark:bg-[#1c2541]/95 dark:border-cyan-500/60 dark:shadow-lg">
+      <header className="sticky top-0 z-30 backdrop-blur-md transition-colors px-4 py-2.5 sm:px-6 border-b
+        bg-white/95 border-[#dadce0] shadow-[0_1px_3px_0_rgba(60,64,67,0.12)]
+        dark:bg-[#08120c]/95 dark:border-[#00ff66]/30 dark:shadow-[0_4px_20px_rgba(0,255,102,0.1)]">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3.5">
               <div className="relative shrink-0 group">
                 <img
                   src="/assets/aistudio/1792888079906_d7414e2f.jpg"
                   alt="io IT Logo"
-                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-cover shadow-md border-2 border-cyan-500/60 dark:border-cyan-400/80 shadow-cyan-500/30 group-hover:scale-105 transition-transform duration-200"
+                  className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl object-cover shadow-md border-2 border-[#1a73e8]/30 dark:border-[#00ff66]/60 shadow-[#1a73e8]/10 dark:shadow-[#00ff66]/20 group-hover:scale-105 transition-transform duration-200 shrink-0"
                 />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-[#1c2541] animate-pulse" />
+                <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#34a853] dark:bg-[#00ff66] border-2 border-white dark:border-[#08120c] animate-pulse" />
               </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-black tracking-tight m-0 text-slate-900 dark:text-white">
-                  <span className="text-[#e63946]">io</span> IT — Assistente Tecnico
+              <div className="flex flex-col justify-between h-16 sm:h-[72px] py-0.5">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight m-0 text-slate-900 dark:text-white leading-none">
+                  <span className="text-[#ea4335]">io</span>{' '}
+                  <span className="text-[#1a73e8] dark:text-[#00ff66]">IT</span>
                 </h1>
-                <p className="text-[11px] text-slate-500 dark:text-gray-400">Prontuario rapido per tecnici e sistemisti aziendali</p>
+                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-gray-200 tracking-tight leading-none">
+                  Guidi Claudio
+                </span>
+                <div className="flex items-center leading-none">
+                  <img
+                    src="/assets/aistudio/cropped-newlogo_dac22d97.png"
+                    alt="System Byte"
+                    className="h-4 sm:h-[18px] w-auto object-contain dark:bg-white/95 dark:px-1 dark:py-0.5 dark:rounded shadow-xs"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:hidden">
+            {/* Mobile: MatrixToggle exactly under ThemeToggle */}
+            <div className="flex flex-col items-end gap-1 sm:hidden min-w-[125px]">
               <ThemeToggle />
-              <div className="flex items-center gap-1 text-xs font-mono text-teal-600 dark:text-teal-400">
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                Pronto
-              </div>
+              <MatrixToggle />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Quick search input */}
-            <div className="relative flex-1 sm:w-60">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-400" />
-              <input
-                type="text"
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                placeholder="Filtro rapido (es. 3CX, Zucchetti, RJ45)..."
-                className="w-full rounded-lg pl-8 pr-2.5 py-1.5 text-xs focus:outline-none transition-colors font-sans
-                  bg-slate-50 border border-slate-300 text-slate-900 focus:border-cyan-600
-                  dark:bg-[#0b132b] dark:border-cyan-500/40 dark:text-white dark:focus:border-cyan-400"
-              />
+          <div className="flex items-start gap-2.5 sm:gap-3">
+            {/* Quick search input + IO-IT Online status placed underneath */}
+            <div className="flex-1 sm:w-64 flex flex-col gap-1.5">
+              <div className="relative w-full">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#00ff66]/70" />
+                <input
+                  type="text"
+                  value={globalSearch}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  placeholder="Filtro rapido (es. 3CX, Zucchetti, RJ45)..."
+                  className="w-full rounded-lg pl-8 pr-2.5 py-1.5 text-xs focus:outline-none transition-all font-sans
+                    bg-[#f1f3f4] border border-[#dadce0] text-slate-900 focus:bg-white focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/20
+                    dark:bg-[#0b140e] dark:border-[#00ff66]/40 dark:text-white dark:focus:border-[#00ff66] dark:focus:ring-2 dark:focus:ring-[#00ff66]/20"
+                />
+              </div>
+
+              {/* IO-IT Online badge directly under Filtro rapido */}
+              <div className="flex items-center justify-between px-2.5 py-1 rounded-md border text-[11px] font-mono select-none
+                bg-[#e6f4ea] border-[#ceead6] text-[#137333] shadow-xs
+                dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66] dark:shadow-[0_0_8px_rgba(0,255,102,0.2)]">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#34a853] dark:bg-[#00ff66] animate-pulse" />
+                  <span className="font-semibold tracking-wide">IO-IT Online</span>
+                </div>
+                <span className="text-[10px] font-sans font-medium text-slate-500 dark:text-[#00ff66]/70">Pronto</span>
+              </div>
             </div>
 
-            <div className="hidden sm:block">
+            {/* Desktop: MatrixToggle exactly under ThemeToggle */}
+            <div className="hidden sm:flex flex-col items-stretch gap-1 min-w-[130px] shrink-0">
               <ThemeToggle />
-            </div>
-
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-mono px-2 py-1.5 rounded-md border
-              bg-slate-50 border-slate-200 text-teal-700
-              dark:bg-[#0b132b] dark:border-teal-500/30 dark:text-teal-400">
-              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-              Senior IT Online
+              <MatrixToggle />
             </div>
           </div>
         </div>
@@ -244,116 +367,32 @@ export default function App() {
 
       {/* Main Container */}
       <main className="relative z-10 max-w-5xl mx-auto px-3 sm:px-6 pt-4 space-y-4">
-        {/* Quick Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs p-2.5 rounded-xl border transition-colors
-          bg-white border-slate-200 text-slate-600 shadow-sm
-          dark:bg-[#1c2541]/70 dark:border-gray-800 dark:text-gray-300">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] font-semibold uppercase tracking-wider mr-1 text-slate-400 dark:text-gray-400">Sezioni:</span>
-            <button
-              onClick={() => toggleSection('hardware')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                openSections.hardware
-                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-[#0b132b] dark:text-gray-400 dark:hover:text-white'
-              }`}
-            >
-              🛠️ Reti & Cavo
-            </button>
-            <button
-              onClick={() => toggleSection('voip')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                openSections.voip
-                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-[#0b132b] dark:text-gray-400 dark:hover:text-white'
-              }`}
-            >
-              📞 3CX & VoIP
-            </button>
-            <button
-              onClick={() => toggleSection('zucchetti')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                openSections.zucchetti
-                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-[#0b132b] dark:text-gray-400 dark:hover:text-white'
-              }`}
-            >
-              🏢 Zucchetti
-            </button>
-            <button
-              onClick={() => toggleSection('windows')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                openSections.windows
-                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-[#0b132b] dark:text-gray-400 dark:hover:text-white'
-              }`}
-            >
-              💻 Windows Server
-            </button>
-            <button
-              onClick={() => toggleSection('notes')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                openSections.notes
-                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-[#0b132b] dark:text-gray-400 dark:hover:text-white'
-              }`}
-            >
-              📝 Appunti
-            </button>
-            <button
-              onClick={() => toggleSection('networkHistory')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                openSections.networkHistory
-                  ? 'bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/40'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-[#0b132b] dark:text-gray-400 dark:hover:text-white'
-              }`}
-            >
-              📡 Storico Reti
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => expandAll(true)}
-              className="text-[11px] font-medium text-cyan-700 hover:underline dark:text-cyan-400"
-            >
-              Espandi Tutto
-            </button>
-            <span className="text-slate-300 dark:text-gray-600">|</span>
-            <button
-              onClick={() => expandAll(false)}
-              className="text-[11px] font-medium text-slate-500 hover:text-slate-900 hover:underline dark:text-gray-400 dark:hover:text-white"
-            >
-              Riduci Tutto
-            </button>
-          </div>
-        </div>
-
-        {/* INLINE AI ANSWER BOX (matching user's #aiBox in their HTML) */}
+        {/* INLINE AI ANSWER BOX */}
         {inlineAiBox.visible && (
-          <div className="p-4 rounded-xl border shadow-md space-y-2.5 transition-colors
-            bg-white border-cyan-300 dark:bg-[#1c2541] dark:border-cyan-500">
-            <div className="flex items-center justify-between border-b pb-2 border-cyan-100 dark:border-cyan-500/30">
-              <strong className="text-sm flex items-center gap-1.5 font-bold text-cyan-800 dark:text-cyan-400">
-                <Bot className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                🤖 Risposta Senior IT:
+          <div className="matrix-card-glow p-4 rounded-2xl border shadow-md space-y-2.5 transition-colors
+            bg-white border-[#1a73e8]/40 shadow-[#1a73e8]/10
+            dark:bg-[#09140c] dark:border-[#00ff66]/50 dark:shadow-[0_0_15px_rgba(0,255,102,0.12)]">
+            <div className="flex items-center justify-between border-b pb-2 border-[#e8eaed] dark:border-[#00ff66]/30">
+              <strong className="text-sm flex items-center gap-1.5 font-bold text-[#1a73e8] dark:text-[#00ff66]">
+                <Bot className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+                🤖 Risposta IO-IT:
               </strong>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleSaveToNotes(`Intervento: ${inlineAiBox.question}`, inlineAiBox.answer)}
-                  className="text-xs px-2.5 py-1 rounded font-semibold transition-colors
-                    bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100
-                    dark:bg-teal-500/20 dark:hover:bg-teal-500/30 dark:text-teal-300 dark:border-teal-500/40"
+                  className="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors border
+                    bg-[#e6f4ea] text-[#137333] border-[#ceead6] hover:bg-[#ceead6]
+                    dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/40 dark:hover:bg-[#003810]"
                 >
                   Salva in Note
                 </button>
                 <button
                   type="button"
                   onClick={() => setInlineAiBox((prev) => ({ ...prev, visible: false }))}
-                  className="px-2.5 py-1 rounded text-xs font-bold transition-colors
-                    bg-cyan-600 text-white hover:bg-cyan-700
-                    dark:bg-cyan-500 dark:text-[#0b132b] dark:hover:bg-cyan-400"
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors
+                    bg-[#1a73e8] text-white hover:bg-[#1557b0]
+                    dark:bg-[#00ff66] dark:text-[#050b07] dark:hover:bg-[#33ff85]"
                 >
                   Chiudi
                 </button>
@@ -361,68 +400,68 @@ export default function App() {
             </div>
             <div className="text-xs italic text-slate-500 dark:text-gray-400">Domanda: "{inlineAiBox.question}"</div>
             <div
-              className="text-xs sm:text-sm leading-relaxed whitespace-pre-line font-sans text-slate-800 dark:text-[#dbe2ef]"
+              className="text-xs sm:text-sm leading-relaxed whitespace-pre-line font-sans text-slate-800 dark:text-[#d4f8e0]"
               dangerouslySetInnerHTML={{
                 __html: inlineAiBox.answer.replace(
                   /`([^`]+)`/g,
-                  '<code class="px-1 py-0.5 rounded font-mono text-xs bg-slate-100 text-teal-800 border border-teal-200 dark:text-teal-300 dark:bg-[#070b19] dark:border-teal-500/20">$1</code>'
+                  '<code class="px-1 py-0.5 rounded font-mono text-xs bg-slate-100 text-[#1a73e8] border border-blue-200 dark:text-[#00ff66] dark:bg-[#020503] dark:border-[#00ff66]/30">$1</code>'
                 ),
               }}
             />
           </div>
         )}
 
-        {/* SECTION 1: HARDWARE, IMPIANTI & RETI */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: HARDWARE, IMPIANTI & RETI */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('hardware')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.hardware
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>🛠️ 1. Hardware, Impianti & Reti</span>
+              <Wrench className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>🛠️ Hardware, Impianti & Reti</span>
             </div>
-            {openSections.hardware ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.hardware ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.hardware && (
             <div className="p-4 space-y-4 text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-[#dbe2ef]">
               {/* Interactive RJ45 Pinout Visualizer */}
-              <div className="p-3.5 rounded-xl border transition-colors bg-slate-50 border-slate-200 dark:bg-[#0b132b] dark:border-white/10">
+              <div className="p-3.5 rounded-xl border transition-colors bg-[#f8f9fa] border-[#e8eaed] dark:bg-[#050c07] dark:border-[#00ff66]/20">
                 <h4 className="font-bold text-sm mb-2 flex items-center gap-2 text-slate-900 dark:text-white">
-                  <Cpu className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  <Cpu className="w-4 h-4 text-[#34a853] dark:text-[#00ff66]" />
                   Sequenza Cavo RJ45 (Standard T568B & T568A)
                 </h4>
                 <Rj45Visualizer />
               </div>
 
               {/* PC non naviga in rete */}
-              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-slate-50 border-slate-200 dark:bg-[#0b132b] dark:border-white/10">
+              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-[#f8f9fa] border-[#e8eaed] dark:bg-[#050c07] dark:border-[#00ff66]/20">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-sm flex items-center gap-2 text-slate-900 dark:text-white">
-                    <Wifi className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                    <Wifi className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
                     PC non naviga in rete (Isolamento guasto)
                   </h4>
                   <button
                     onClick={() => handleCopySnippet('ipconfig /all\nping 8.8.8.8\nipconfig /flushdns', 'pc-net')}
-                    className="text-[11px] font-medium flex items-center gap-1 text-cyan-700 hover:underline dark:text-cyan-400"
+                    className="text-[11px] font-medium flex items-center gap-1 text-[#1a73e8] hover:underline dark:text-[#00ff66]"
                   >
-                    {copiedKey === 'pc-net' ? <Check className="w-3 h-3 text-teal-600 dark:text-teal-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedKey === 'pc-net' ? <Check className="w-3 h-3 text-[#34a853] dark:text-[#00ff66]" /> : <Copy className="w-3 h-3" />}
                     Copia Comandi
                   </button>
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-gray-300">
                   <p>
-                    <strong>1. Verifica IP con DHCP:</strong> Apri CMD e digita <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">ipconfig</code>. Se visualizzi un indirizzo <strong className="text-amber-600 dark:text-amber-400">169.254.x.x</strong> (APIPA), la macchina non comunica con il server DHCP (cavo staccato, porta switch bloccata, VLAN errata o pool esaurito).
+                    <strong>1. Verifica IP con DHCP:</strong> Apri CMD e digita <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">ipconfig</code>. Se visualizzi un indirizzo <strong className="text-amber-600 dark:text-amber-400">169.254.x.x</strong> (APIPA), la macchina non comunica con il server DHCP (cavo staccato, porta switch bloccata, VLAN errata o pool esaurito).
                   </p>
                   <p>
-                    <strong>2. Verifica connettività Internet:</strong> Esegui <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">ping 8.8.8.8</code>. Se risponde ma i siti non si aprono, è un <strong className="text-cyan-700 dark:text-cyan-300">problema di risoluzione DNS</strong>: imposta 1.1.1.1 o 8.8.8.8 nella scheda di rete ed esegui <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">ipconfig /flushdns</code>.
+                    <strong>2. Verifica connettività Internet:</strong> Esegui <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">ping 8.8.8.8</code>. Se risponde ma i siti non si aprono, è un <strong className="text-[#1a73e8] dark:text-[#00ff66]">problema di risoluzione DNS</strong>: imposta 1.1.1.1 o 8.8.8.8 nella scheda di rete ed esegui <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">ipconfig /flushdns</code>.
                   </p>
                   <p>
                     <strong>3. Verifica Gateway:</strong> Se non risponde neanche l'IP del gateway locale, controlla che la scheda di rete non sia disabilitata o che non vi sia un conflitto di IP statico.
@@ -431,10 +470,10 @@ export default function App() {
               </div>
 
               {/* Stampante di rete bloccata */}
-              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-slate-50 border-slate-200 dark:bg-[#0b132b] dark:border-white/10">
+              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-[#f8f9fa] border-[#e8eaed] dark:bg-[#050c07] dark:border-[#00ff66]/20">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-sm flex items-center gap-2 text-slate-900 dark:text-white">
-                    <Printer className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                    <Printer className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
                     Stampante di rete bloccata / Offline
                   </h4>
                   <button
@@ -444,18 +483,18 @@ export default function App() {
                         'print-spool'
                       )
                     }
-                    className="text-[11px] font-medium flex items-center gap-1 text-teal-700 hover:underline dark:text-teal-400"
+                    className="text-[11px] font-medium flex items-center gap-1 text-[#34a853] hover:underline dark:text-[#00ff66]"
                   >
-                    {copiedKey === 'print-spool' ? <Check className="w-3 h-3 text-teal-600 dark:text-teal-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedKey === 'print-spool' ? <Check className="w-3 h-3 text-[#34a853] dark:text-[#00ff66]" /> : <Copy className="w-3 h-3" />}
                     Copia Reset Spooler
                   </button>
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-gray-300">
                   <p>
-                    <strong>1. Ping Hardware:</strong> Fai <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">ping &lt;IP_Stampante&gt;</code> per verificare che la stampante sia accesa e collegata alla rete.
+                    <strong>1. Ping Hardware:</strong> Fai <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">ping &lt;IP_Stampante&gt;</code> per verificare che la stampante sia accesa e collegata alla rete.
                   </p>
                   <p>
-                    <strong>2. Riavvio Spooler:</strong> Su <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">services.msc</code> riavvia il servizio <strong>Spooler di stampa</strong> oppure esegui lo script CMD per cancellare i documenti corrotti bloccati in coda.
+                    <strong>2. Riavvio Spooler:</strong> Su <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">services.msc</code> riavvia il servizio <strong>Spooler di stampa</strong> oppure esegui lo script CMD per cancellare i documenti corrotti bloccati in coda.
                   </p>
                   <p>
                     <strong>3. Porta Standard TCP/IP:</strong> Non utilizzare MAI le porte generate automaticamente via <strong className="text-rose-600 dark:text-rose-400">WSD</strong> (Web Services for Devices) che si disconnettono frequentemente dopo lo standby. Configura sempre una porta <strong>Standard TCP/IP</strong> su indirizzo IP fisso riservato nel DHCP.
@@ -469,23 +508,23 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION 2: 3CX & TELEFONIA VOIP */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: 3CX & TELEFONIA VOIP */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('voip')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.voip
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>📞 2. Spazio 3CX & Telefonia VoIP</span>
+              <Phone className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>📞 Spazio 3CX & Telefonia VoIP</span>
             </div>
-            {openSections.voip ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.voip ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.voip && (
@@ -547,36 +586,36 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION 3: SPAZIO ZUCCHETTI */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: SPAZIO ZUCCHETTI */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('zucchetti')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.zucchetti
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Building className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>🏢 3. Spazio Zucchetti (Infinity, Ad Hoc, HR, Paghe)</span>
+              <Building className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>🏢 Spazio Zucchetti (Infinity, Ad Hoc, HR, Paghe)</span>
             </div>
-            {openSections.zucchetti ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.zucchetti ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.zucchetti && (
             <div className="p-4 space-y-4 text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-[#dbe2ef]">
               {/* Utente Bloccato */}
-              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-slate-50 border-slate-200 dark:bg-[#0b132b] dark:border-white/10">
+              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-[#f8f9fa] border-[#e8eaed] dark:bg-[#050c07] dark:border-[#00ff66]/20">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">Utente Bloccato / Sessione Appesa / Documento in Uso</h4>
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-gray-300">
                   <p>
                     • <strong>Ambiente Web Infinity / Portale HR / Zucchetti Paghe:</strong> Accedi con account amministratore ➔ <em>Amministrazione del Sistema ➔ Controllo Sessioni / Utenti Connessi</em> ➔ Seleziona l'utente bloccato e clicca <strong>Disconnetti / Termina Sessione</strong>.
                   </p>
                   <p>
-                    • <strong>Ad Hoc Revolution / Enterprise (Server RDS / Terminal Server):</strong> Apri <strong>Gestione Attività (Task Manager)</strong> sul server Terminal ➔ Vai alla scheda <em>Utenti</em> ➔ Individua l'utente (spesso in stato "Disconnesso") ➔ Espandi e fai clic destro su <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">adhoc.exe</code> ➔ <strong>Termina attività</strong>.
+                    • <strong>Ad Hoc Revolution / Enterprise (Server RDS / Terminal Server):</strong> Apri <strong>Gestione Attività (Task Manager)</strong> sul server Terminal ➔ Vai alla scheda <em>Utenti</em> ➔ Individua l'utente (spesso in stato "Disconnesso") ➔ Espandi e fai clic destro su <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">adhoc.exe</code> ➔ <strong>Termina attività</strong>.
                   </p>
                   <p>
                     • <strong>Tabelle di blocco database:</strong> Se il record rimane bloccato (es. bolla o fattura in modifica), esegui l'utility di riallineamento indici e verifica archivi integrata in Ad Hoc.
@@ -585,31 +624,31 @@ export default function App() {
               </div>
 
               {/* Pagina bianca / Nessuno entra */}
-              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-slate-50 border-slate-200 dark:bg-[#0b132b] dark:border-white/10">
+              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-[#f8f9fa] border-[#e8eaed] dark:bg-[#050c07] dark:border-[#00ff66]/20">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pagina bianca, errore HTTP 500 o nessuno riesce ad accedere</h4>
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-gray-300">
                   <p>
-                    <strong>1. Cache e Pop-up del Browser:</strong> Su Chrome/Edge premi <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">CTRL + SHIFT + CANC</code>, svuota file temporanei e immagini memorizzate nella cache. Nelle impostazioni del browser verifica che i <strong>Pop-up</strong> e i reindirizzamenti siano impostati su <em>"Consenti sempre"</em> per l'URL del server Zucchetti.
+                    <strong>1. Cache e Pop-up del Browser:</strong> Su Chrome/Edge premi <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">CTRL + SHIFT + CANC</code>, svuota file temporanei e immagini memorizzate nella cache. Nelle impostazioni del browser verifica che i <strong>Pop-up</strong> e i reindirizzamenti siano impostati su <em>"Consenti sempre"</em> per l'URL del server Zucchetti.
                   </p>
                   <p>
-                    <strong>2. Servizi su Server Zucchetti:</strong> Apri <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">services.msc</code> sul server applicativo e controlla lo stato dei seguenti servizi essenziali:
+                    <strong>2. Servizi su Server Zucchetti:</strong> Apri <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">services.msc</code> sul server applicativo e controlla lo stato dei seguenti servizi essenziali:
                   </p>
                   <ul className="list-disc list-inside ml-2 space-y-0.5 text-slate-500 dark:text-gray-400">
                     <li><strong>Apache Tomcat (Zucchetti Web / Infinity):</strong> In esecuzione. Se la RAM è satura, riavvia il servizio.</li>
                     <li><strong>SQL Server / PostgreSQL / Pervasive:</strong> Verifica che il motore di database sia avviato e non sia in pausa.</li>
                   </ul>
                   <p>
-                    <strong>3. Spazio su Disco Server:</strong> Controlla che il disco <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">C:\</code> del server Zucchetti non sia completamente pieno a causa dei file di log di Tomcat (<code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">catalina.out</code> o dump), condizione che blocca all'istante qualsiasi operazione di scrittura del database.
+                    <strong>3. Spazio su Disco Server:</strong> Controlla che il disco <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">C:\</code> del server Zucchetti non sia completamente pieno a causa dei file di log di Tomcat (<code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">catalina.out</code> o dump), condizione che blocca all'istante qualsiasi operazione di scrittura del database.
                   </p>
                 </div>
               </div>
 
               {/* Stampe bloccate */}
-              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-slate-50 border-slate-200 dark:bg-[#0b132b] dark:border-white/10">
+              <div className="p-3.5 rounded-xl border space-y-2 transition-colors bg-[#f8f9fa] border-[#e8eaed] dark:bg-[#050c07] dark:border-[#00ff66]/20">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white">Stampe PDF Crystal Reports bloccate o lente</h4>
                 <div className="space-y-1 text-xs text-slate-600 dark:text-gray-300">
                   <p>
-                    Sui server RDS, le stampe Zucchetti si appoggiano alla cartella temporanea dell'utente. Se si bloccano, chiudi Ad Hoc, apri <em>Esegui</em> (<code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">Win + R</code>) ➔ digita <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">%temp%</code> e cancella i file residui <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-teal-300 dark:bg-[#070b19]">~*.*</code> e i file PDF temporanei.
+                    Sui server RDS, le stampe Zucchetti si appoggiano alla cartella temporanea dell'utente. Se si bloccano, chiudi Ad Hoc, apri <em>Esegui</em> (<code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">Win + R</code>) ➔ digita <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">%temp%</code> e cancella i file residui <code className="px-1 py-0.5 rounded bg-slate-200 text-slate-900 dark:text-[#00ff66] dark:bg-[#020503] font-mono">~*.*</code> e i file PDF temporanei.
                   </p>
                 </div>
               </div>
@@ -617,23 +656,23 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION 4: SISTEMISTICA & SERVER */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: SISTEMISTICA & SERVER */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('windows')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.windows
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>💻 4. Sistemistica & Server Windows</span>
+              <Server className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>💻 Sistemistica & Server Windows</span>
             </div>
-            {openSections.windows ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.windows ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.windows && (
@@ -644,9 +683,9 @@ export default function App() {
               </div>
 
               {/* Commands Cheat Sheet */}
-              <div className="pt-4 border-t border-slate-200 dark:border-gray-800">
+              <div className="pt-4 border-t border-[#dadce0] dark:border-[#00ff66]/20">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Server className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <Server className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
                   Prontuario Comandi Salvavita CMD & PowerShell
                 </h4>
                 <CommandsCheatSheet />
@@ -655,23 +694,23 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION 5: DIZIONARIO IT ZERO DUBBI */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: DIZIONARIO IT ZERO DUBBI */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('dictionary')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.dictionary
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>📖 5. Dizionario IT "Zero Dubbi"</span>
+              <BookOpen className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>📖 Dizionario IT "Zero Dubbi"</span>
             </div>
-            {openSections.dictionary ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.dictionary ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.dictionary && (
@@ -681,23 +720,23 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION 6: BLOCCO NOTE "COME HO RISOLTO" */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: BLOCCO NOTE "COME HO RISOLTO" */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('notes')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.notes
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <NotebookPen className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>📝 6. Blocco Note "Come ho risolto" (Knowledge Base)</span>
+              <NotebookPen className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>📝 Blocco Note "Come ho risolto" (Knowledge Base)</span>
             </div>
-            {openSections.notes ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.notes ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.notes && (
@@ -710,23 +749,23 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION 7: STORICO RETI ANALIZZATE & AUDIT */}
-        <section className="rounded-xl border overflow-hidden transition-all
-          bg-white border-slate-200 shadow-sm
-          dark:bg-[#1c2541] dark:border-white/15 dark:shadow-md">
+        {/* SECTION: STORICO RETI ANALIZZATE & AUDIT */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
           <button
             onClick={() => toggleSection('networkHistory')}
             className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
               openSections.networkHistory
-                ? 'bg-cyan-50 text-cyan-900 border-b border-cyan-100 dark:bg-[#253256] dark:text-cyan-400 dark:border-white/10'
-                : 'text-slate-800 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5'
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Network className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-              <span>📡 7. Storico Reti Analizzate & Audit Clienti</span>
+              <Network className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>📡 Storico Reti Analizzate & Audit Clienti</span>
             </div>
-            {openSections.networkHistory ? <ChevronUp className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-400" />}
+            {openSections.networkHistory ? <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />}
           </button>
 
           {openSections.networkHistory && (
@@ -735,9 +774,165 @@ export default function App() {
             </div>
           )}
         </section>
+
+        {/* SECTION: TOOL & UTILITY IT */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
+          <button
+            onClick={() => toggleSection('tools')}
+            className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
+              openSections.tools
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Gauge className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>⚡ Tool & Strumenti IT (Speedtest Ookla & Utility)</span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#e8f0fe] text-[#1967d2] dark:bg-[#00220a] dark:text-[#00ff66] border border-[#aecbfa] dark:border-[#00ff66]/40">
+                Toolbox
+              </span>
+            </div>
+            {openSections.tools ? (
+              <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />
+            )}
+          </button>
+
+          {openSections.tools && (
+            <div className="p-4 space-y-6">
+              {/* Speedtest Ookla */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b pb-2 border-[#dadce0] dark:border-[#00ff66]/20">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[#fbbc04]" />
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                      Speedtest Banda & Latenza (Motore Ookla-Style con Gauge)
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#e6f4ea] text-[#137333] dark:bg-[#00220a] dark:text-[#00ff66] border border-[#ceead6] dark:border-[#00ff66]/40">
+                    Attivo
+                  </span>
+                </div>
+                <OoklaSpeedtest onSaveToHistory={handleSaveSpeedtestToHistory} />
+              </div>
+
+              {/* Hub Spazio per Futuri Tool */}
+              <div className="pt-3 border-t border-[#dadce0] dark:border-[#00ff66]/20">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 flex items-center gap-1.5">
+                    <Wrench className="w-3.5 h-3.5 text-[#1a73e8] dark:text-[#00ff66]" />
+                    Slot per Nuovi Tool in arrivo:
+                  </h4>
+                  <span className="text-[11px] font-mono text-[#1a73e8] dark:text-[#00ff66]">Architettura Modulare</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3.5 rounded-xl border border-dashed border-[#dadce0] dark:border-[#00ff66]/30 bg-[#f8f9fa] dark:bg-[#050c07] flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-[#1a73e8] dark:text-[#00ff66]" />
+                        Ping Continuo & Packet Loss Tester
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-gray-400 mt-1">
+                        Monitoraggio continuo di jitter e stabilità linea su DNS Cloudflare / Google o gateway personalizzato.
+                      </div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-200 dark:bg-[#00220a] text-slate-700 dark:text-[#00ff66] border border-transparent dark:border-[#00ff66]/30 shrink-0">
+                      In sviluppo
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-dashed border-[#dadce0] dark:border-[#00ff66]/30 bg-[#f8f9fa] dark:bg-[#050c07] flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Server className="w-3.5 h-3.5 text-[#34a853] dark:text-[#00ff66]" />
+                        Port Scanner & Verificatore Porte VoIP / Web
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-gray-400 mt-1">
+                        Test immediato porte critiche 3CX (5060 SIP, 5090 Tunnel, 9000-10999 RTP) e server Zucchetti.
+                      </div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-200 dark:bg-[#00220a] text-slate-700 dark:text-[#00ff66] border border-transparent dark:border-[#00ff66]/30 shrink-0">
+                      In sviluppo
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* SECTION: LAVORI SVOLTI & RAPPORTINI IT (ZUCCHETTI AD HOC) */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
+          <button
+            onClick={() => toggleSection('lavori')}
+            className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
+              openSections.lavori
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>💼 Lavori Svolti & Rapportini IT</span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#e8f0fe] text-[#1967d2] dark:bg-[#00220a] dark:text-[#00ff66] border border-[#aecbfa] dark:border-[#00ff66]/40">
+                Zucchetti Ad Hoc
+              </span>
+            </div>
+            {openSections.lavori ? (
+              <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />
+            )}
+          </button>
+
+          {openSections.lavori && (
+            <div className="p-4 space-y-4">
+              <LavoriSvoltiSection />
+            </div>
+          )}
+        </section>
+
+        {/* SECTION: CONSOLE LOG SISTEMA IO-IT (TAB A FINE PAGINA) */}
+        <section className="matrix-card-glow rounded-2xl border overflow-hidden transition-all
+          bg-white border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.18)] hover:shadow-md hover:border-[#1a73e8]/40
+          dark:bg-[#09140c] dark:border-[#00ff66]/25 dark:shadow-[0_0_12px_rgba(0,255,102,0.04)] dark:hover:border-[#00ff66]/50">
+          <button
+            onClick={() => toggleSection('systemLog')}
+            className={`w-full p-3.5 text-left font-bold text-sm sm:text-base flex items-center justify-between transition-colors ${
+              openSections.systemLog
+                ? 'bg-[#e8f0fe] text-[#1a73e8] border-b border-[#dadce0] dark:bg-[#00220a] dark:text-[#00ff66] dark:border-[#00ff66]/30'
+                : 'text-slate-800 hover:bg-[#f8f9fa] dark:text-gray-100 dark:hover:bg-[#00ff66]/5'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+              <span>💻 Console Log Sistema IO-IT</span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#e6f4ea] text-[#137333] dark:bg-[#00220a] dark:text-[#00ff66] border border-[#ceead6] dark:border-[#00ff66]/40 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#34a853] dark:bg-[#00ff66] animate-pulse" />
+                Live Debugger
+              </span>
+            </div>
+            {openSections.systemLog ? (
+              <ChevronUp className="w-4 h-4 text-[#1a73e8] dark:text-[#00ff66]" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400 dark:text-gray-500" />
+            )}
+          </button>
+
+          {openSections.systemLog && (
+            <div className="p-4 space-y-4">
+              <SystemLogSection />
+            </div>
+          )}
+        </section>
       </main>
 
-      {/* Senior IT Modal Dialog */}
+      {/* IO-IT Modal Dialog */}
       <SeniorItModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

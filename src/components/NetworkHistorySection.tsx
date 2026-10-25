@@ -21,6 +21,9 @@ import {
   Calendar,
   Radio,
   Sparkles,
+  FileSpreadsheet,
+  FileCode,
+  FileDown,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'io_it_network_history_v1';
@@ -48,6 +51,7 @@ export default function NetworkHistorySection({
   const [typeFilter, setTypeFilter] = useState<string>('Tutti');
   const [showAddForm, setShowAddForm] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [exportFeedback, setExportFeedback] = useState<string | null>(null);
 
   // Form state
   const [clientName, setClientName] = useState('');
@@ -183,14 +187,118 @@ ${audit.resolutionNotes}
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleExport = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(audits, null, 2));
+  const notifyExport = (msg: string) => {
+    setExportFeedback(msg);
+    setTimeout(() => setExportFeedback(null), 3000);
+  };
+
+  // Export JSON function (single or multiple)
+  const handleExportJSON = (specificItems?: NetworkAuditItem[], fileNamePrefix?: string) => {
+    const targetAudits = specificItems || audits;
+    if (targetAudits.length === 0) {
+      alert('Nessuna rete da esportare.');
+      return;
+    }
+
+    const jsonStr = JSON.stringify(targetAudits, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `io_IT_Storico_Reti_${new Date().toISOString().slice(0, 10)}.json`);
+    const prefix = fileNamePrefix || 'io_IT_Storico_Reti';
+    downloadAnchor.setAttribute('href', url);
+    downloadAnchor.setAttribute(
+      'download',
+      `${prefix}_${new Date().toISOString().slice(0, 10)}.json`
+    );
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    URL.revokeObjectURL(url);
+    notifyExport(`File JSON scaricato (${targetAudits.length} reti esportate)!`);
+  };
+
+  // Helper for CSV escaping
+  const escapeCsv = (val: string | number | undefined | null) => {
+    if (val === undefined || val === null) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  // Export CSV function (single or multiple)
+  const handleExportCSV = (specificItems?: NetworkAuditItem[], fileNamePrefix?: string) => {
+    const targetAudits = specificItems || audits;
+    if (targetAudits.length === 0) {
+      alert('Nessuna rete da esportare.');
+      return;
+    }
+
+    const headers = [
+      'ID Audit',
+      'Cliente',
+      'Sede',
+      'Tipologia Rete',
+      'Subnet CIDR',
+      'Gateway',
+      'DNS Primario',
+      'DNS Secondario',
+      'Range DHCP',
+      'ISP Connettività',
+      'Router / Firewall',
+      'Switch e AP',
+      'VLAN Configurate',
+      'Latenza Ping (ms)',
+      'Packet Loss (%)',
+      'Stato Audit',
+      'Diagnosi e Rilievi',
+      'Azioni e Risoluzione',
+      'Data Analisi',
+    ];
+
+    const rows = targetAudits.map((a) => {
+      const vlansStr =
+        a.vlans && a.vlans.length > 0
+          ? a.vlans.map((v) => `VLAN ${v.id} (${v.name} - ${v.subnet})`).join(' | ')
+          : 'Nessuna VLAN';
+
+      return [
+        escapeCsv(a.id),
+        escapeCsv(a.clientName),
+        escapeCsv(a.location),
+        escapeCsv(a.networkType),
+        escapeCsv(a.subnet),
+        escapeCsv(a.gateway),
+        escapeCsv(a.dnsPrimary),
+        escapeCsv(a.dnsSecondary || ''),
+        escapeCsv(a.dhcpRange),
+        escapeCsv(a.ispInfo),
+        escapeCsv(a.firewallRouter),
+        escapeCsv(a.switches),
+        escapeCsv(vlansStr),
+        escapeCsv(a.avgLatencyMs),
+        escapeCsv(a.packetLossPercent),
+        escapeCsv(a.status.toUpperCase()),
+        escapeCsv(a.keyFindings),
+        escapeCsv(a.resolutionNotes),
+        escapeCsv(a.analyzedAt),
+      ].join(';');
+    });
+
+    // Add UTF-8 BOM so Microsoft Excel / Google Sheets open Italian characters properly
+    const csvContent = '\uFEFF' + headers.map((h) => `"${h}"`).join(';') + '\n' + rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const downloadAnchor = document.createElement('a');
+    const prefix = fileNamePrefix || 'io_IT_Storico_Reti';
+    downloadAnchor.setAttribute('href', url);
+    downloadAnchor.setAttribute(
+      'download',
+      `${prefix}_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    URL.revokeObjectURL(url);
+    notifyExport(`File CSV scaricato (${targetAudits.length} reti esportate)!`);
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,10 +310,10 @@ ${audit.resolutionNotes}
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
           setAudits([...parsed, ...audits]);
-          alert(`${parsed.length} schede di rete importate nello storico!`);
+          notifyExport(`${parsed.length} schede di rete importate con successo!`);
         }
       } catch (err) {
-        alert('File non valido.');
+        alert('File non valido. Assicurati che sia un file JSON valido generato da io IT.');
       }
     };
     reader.readAsText(file);
@@ -300,19 +408,34 @@ ${audit.resolutionNotes}
           {showAddForm ? 'Chiudi Form' : 'Registra Nuova Rete Analizzata'}
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {exportFeedback && (
+            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 px-2.5 py-1 rounded-md animate-in fade-in duration-150">
+              ✓ {exportFeedback}
+            </span>
+          )}
+
           <button
-            onClick={handleExport}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md transition-colors bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-[#1c2541] dark:hover:bg-cyan-500/20 dark:text-gray-300 dark:hover:text-cyan-300 dark:border-gray-700"
-            title="Esporta lo storico delle reti analizzate in formato JSON"
+            onClick={() => handleExportJSON()}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-[#1c2541] dark:hover:bg-cyan-500/20 dark:text-gray-300 dark:hover:text-cyan-300 dark:border-gray-700 shadow-sm"
+            title="Scarica lo storico di tutte le reti in formato JSON"
           >
-            <Download className="w-3.5 h-3.5" />
+            <FileCode className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
             Esporta JSON
           </button>
 
-          <label className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md transition-colors cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-[#1c2541] dark:hover:bg-cyan-500/20 dark:text-gray-300 dark:hover:text-cyan-300 dark:border-gray-700">
-            <Upload className="w-3.5 h-3.5" />
-            Importa
+          <button
+            onClick={() => handleExportCSV()}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700/60 shadow-sm"
+            title="Scarica lo storico in formato CSV compatibile con Microsoft Excel e Google Sheets"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            Esporta CSV (Excel)
+          </button>
+
+          <label className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-[#1c2541] dark:hover:bg-cyan-500/20 dark:text-gray-300 dark:hover:text-cyan-300 dark:border-gray-700 shadow-sm">
+            <Upload className="w-3.5 h-3.5 text-slate-500 dark:text-gray-400" />
+            Importa JSON
             <input type="file" accept=".json" onChange={handleImport} className="hidden" />
           </label>
         </div>
@@ -631,6 +754,32 @@ ${audit.resolutionNotes}
                         Calcola Subnet
                       </button>
                     )}
+
+                    <button
+                      onClick={() =>
+                        handleExportJSON(
+                          [item],
+                          `io_IT_Audit_${item.clientName.replace(/\s+/g, '_')}`
+                        )
+                      }
+                      className="p-1.5 rounded transition-colors bg-slate-100 hover:bg-cyan-100 text-slate-600 hover:text-cyan-800 dark:bg-[#1c2541] dark:hover:bg-cyan-500/20 dark:text-gray-300 dark:hover:text-cyan-300"
+                      title="Esporta questa singola scheda in JSON"
+                    >
+                      <FileCode className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleExportCSV(
+                          [item],
+                          `io_IT_Audit_${item.clientName.replace(/\s+/g, '_')}`
+                        )
+                      }
+                      className="p-1.5 rounded transition-colors bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-800 dark:bg-[#1c2541] dark:hover:bg-emerald-500/20 dark:text-gray-300 dark:hover:text-emerald-300"
+                      title="Esporta questa singola scheda in CSV (Excel)"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    </button>
 
                     <button
                       onClick={() => handleCopySummary(item)}

@@ -42,6 +42,47 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Ookla-style Speedtest Endpoints
+// 1. Ping / Latency & Jitter test
+app.get('/api/speedtest/ping', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.json({
+    timestamp: Date.now(),
+    server: 'io IT Test Node (Milano / Cloud)',
+  });
+});
+
+// 2. Download throughput test
+app.get('/api/speedtest/download', (req, res) => {
+  const sizeMb = Math.min(Math.max(parseInt((req.query.size as string) || '4', 10), 1), 20);
+  const totalBytes = sizeMb * 1024 * 1024;
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Content-Length', totalBytes.toString());
+
+  // Generate 64KB chunk
+  const chunkSize = 64 * 1024;
+  const buffer = Buffer.alloc(chunkSize, 'A');
+  const numChunks = Math.floor(totalBytes / chunkSize);
+
+  for (let i = 0; i < numChunks; i++) {
+    res.write(buffer);
+  }
+  res.end();
+});
+
+// 3. Upload throughput test
+app.post('/api/speedtest/upload', express.raw({ type: '*/*', limit: '25mb' }), (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache');
+  const bytes = req.body ? req.body.length : 0;
+  res.json({
+    status: 'ok',
+    bytesReceived: bytes,
+    timestamp: Date.now(),
+  });
+});
+
 // Fallback rule-based IT knowledge generator if Gemini API key is missing or offline
 function getFallbackItResponse(query: string): string {
   const low = query.toLowerCase();

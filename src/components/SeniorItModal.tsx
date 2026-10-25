@@ -33,7 +33,7 @@ export default function SeniorItModal({
   };
 
   const handleSaveNotes = () => {
-    onSaveToNotes(`Senior IT: ${question.slice(0, 50)}${question.length > 50 ? '...' : ''}`, answer);
+    onSaveToNotes(`IO-IT: ${question.slice(0, 50)}${question.length > 50 ? '...' : ''}`, answer);
     setSavedToNotes(true);
     setTimeout(() => setSavedToNotes(false), 2000);
   };
@@ -180,32 +180,32 @@ export default function SeniorItModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden transition-colors border
-        bg-white border-slate-200 shadow-slate-900/20
-        dark:bg-[#1c2541] dark:border-cyan-500/50 dark:shadow-cyan-950/50">
+      <div className="senior-it-modal-card matrix-card-glow rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden transition-colors border
+        bg-white border-[#dadce0] shadow-slate-900/20
+        dark:bg-[#09140c] dark:border-[#00ff66]/50 dark:shadow-[0_0_30px_rgba(0,255,102,0.18)]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b transition-colors
-          bg-slate-50 border-slate-200
-          dark:bg-[#141b30] dark:border-cyan-500/30">
+          bg-[#f8f9fa] border-[#dadce0]
+          dark:bg-[#050c07] dark:border-[#00ff66]/30">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center
-              bg-cyan-100 border border-cyan-200 text-cyan-800
-              dark:bg-cyan-500/20 dark:border-cyan-500/40 dark:text-cyan-400">
+              bg-[#e8f0fe] border border-[#aecbfa] text-[#1967d2]
+              dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66]">
               <Bot className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-sm flex items-center gap-2 text-slate-900 dark:text-white">
-                <span>Senior IT — Diagnosi & Soluzione</span>
+                <span>IO-IT — Diagnosi & Soluzione</span>
                 {source === 'gemini-3.8-flash' ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-mono
-                    bg-emerald-100 border border-emerald-200 text-emerald-800
-                    dark:bg-emerald-950 dark:border-emerald-500/40 dark:text-emerald-300">
+                    bg-[#e6f4ea] border border-[#ceead6] text-[#137333]
+                    dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66]">
                     Gemini 3.8 Flash
                   </span>
                 ) : (
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-mono
-                    bg-cyan-100 border border-cyan-200 text-cyan-800
-                    dark:bg-cyan-950 dark:border-cyan-500/40 dark:text-cyan-300">
+                    bg-[#e8f0fe] border border-[#aecbfa] text-[#1967d2]
+                    dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66]">
                     Knowledge Engine
                   </span>
                 )}
@@ -216,7 +216,7 @@ export default function SeniorItModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-gray-400 dark:hover:text-[#00ff66] dark:hover:bg-[#00ff66]/10 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -224,9 +224,9 @@ export default function SeniorItModal({
 
         {/* User Question */}
         <div className="px-4 py-2.5 border-b text-xs flex items-center gap-2
-          bg-slate-100 border-slate-200 text-slate-700
-          dark:bg-[#0b132b]/80 dark:border-gray-800 dark:text-gray-300">
-          <span className="font-bold shrink-0 text-cyan-700 dark:text-cyan-400">Domanda:</span>
+          bg-[#f1f3f4] border-[#dadce0] text-slate-700
+          dark:bg-[#050b07] dark:border-[#00ff66]/20 dark:text-gray-300">
+          <span className="font-bold shrink-0 text-[#1a73e8] dark:text-[#00ff66]">Domanda:</span>
           <span className="italic truncate font-medium text-slate-900 dark:text-white">"{question}"</span>
         </div>
 
@@ -234,8 +234,8 @@ export default function SeniorItModal({
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {isLoading ? (
             <div className="py-12 flex flex-col items-center justify-center space-y-3">
-              <div className="w-8 h-8 border-2 border-cyan-600 dark:border-cyan-400 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs font-mono animate-pulse text-cyan-700 dark:text-cyan-300">Analisi guasto con Senior IT in corso...</p>
+              <div className="w-8 h-8 border-2 border-[#1a73e8] dark:border-[#00ff66] border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-mono animate-pulse text-[#1a73e8] dark:text-[#00ff66]">Analisi guasto con IO-IT in corso...</p>
             </div>
           ) : (
             <div className="space-y-1">{renderFormattedAnswer(answer)}</div>
@@ -244,17 +244,17 @@ export default function SeniorItModal({
 
         {/* Footer Actions */}
         <div className="p-3 border-t flex flex-wrap items-center justify-between gap-2
-          bg-slate-50 border-slate-200
-          dark:bg-[#141b30] dark:border-gray-800">
+          bg-[#f8f9fa] border-[#dadce0]
+          dark:bg-[#050c07] dark:border-[#00ff66]/20">
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopyFull}
               disabled={isLoading || !answer}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50
-                bg-white hover:bg-slate-100 text-slate-700 border border-slate-300
-                dark:bg-[#0b132b] dark:hover:bg-cyan-500/20 dark:text-gray-200 dark:hover:text-cyan-300 dark:border-cyan-500/40"
+                bg-white hover:bg-[#f1f3f4] text-slate-700 border border-[#dadce0]
+                dark:bg-[#0a140d] dark:hover:bg-[#00220a] dark:text-gray-200 dark:hover:text-[#00ff66] dark:border-[#00ff66]/40"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-[#34a853] dark:text-[#00ff66]" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Risposta Copiata!' : 'Copia Risposta'}
             </button>
 
@@ -262,10 +262,10 @@ export default function SeniorItModal({
               onClick={handleSaveNotes}
               disabled={isLoading || !answer}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50
-                bg-white hover:bg-teal-50 text-teal-800 border border-teal-200
-                dark:bg-[#0b132b] dark:hover:bg-teal-500/20 dark:text-gray-200 dark:hover:text-teal-300 dark:border-teal-500/40"
+                bg-white hover:bg-[#e6f4ea] text-[#137333] border border-[#ceead6]
+                dark:bg-[#0a140d] dark:hover:bg-[#00220a] dark:text-gray-200 dark:hover:text-[#00ff66] dark:border-[#00ff66]/40"
             >
-              {savedToNotes ? <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+              {savedToNotes ? <Check className="w-3.5 h-3.5 text-[#34a853] dark:text-[#00ff66]" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
               {savedToNotes ? 'Salvato negli Appunti!' : 'Salva in Blocco Note'}
             </button>
           </div>
@@ -273,8 +273,8 @@ export default function SeniorItModal({
           <button
             onClick={onClose}
             className="text-xs px-4 py-1.5 font-bold rounded-lg transition-colors
-              bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm
-              dark:bg-cyan-500 dark:hover:bg-cyan-400 dark:text-[#0b132b]"
+              bg-[#1a73e8] hover:bg-[#1557b0] text-white shadow-xs
+              dark:bg-[#00ff66] dark:hover:bg-[#33ff85] dark:text-[#050b07] dark:shadow-[0_0_12px_rgba(0,255,102,0.3)]"
           >
             Chiudi
           </button>

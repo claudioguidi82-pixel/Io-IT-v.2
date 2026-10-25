@@ -35,7 +35,7 @@ export default function NotesSection({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Sync external note from Senior IT AI if passed
+  // Sync external note from IO-IT AI if passed
   useEffect(() => {
     if (externalNewNote) {
       setTitle(externalNewNote.title);

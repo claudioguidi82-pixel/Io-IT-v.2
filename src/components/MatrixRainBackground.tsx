@@ -2,16 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 export default function MatrixRainBackground() {
-  const { theme } = useTheme();
+  const { theme, matrixEnabled } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [matrixEnabled, setMatrixEnabled] = useState<boolean>(() => {
-    try {
-      const stored = localStorage.getItem('io_it_matrix_enabled');
-      return stored !== null ? stored === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
 
   const isDark = theme === 'dark';
 
@@ -62,9 +54,9 @@ export default function MatrixRainBackground() {
 
       // Semi-transparent overlay to create fading trail effect
       if (isDark) {
-        ctx.fillStyle = 'rgba(11, 19, 43, 0.16)'; // matches #0b132b
+        ctx.fillStyle = 'rgba(5, 11, 7, 0.18)'; // authentic Matrix deep cyber dark
       } else {
-        ctx.fillStyle = 'rgba(241, 245, 249, 0.22)'; // matches light slate-100
+        ctx.fillStyle = 'rgba(248, 249, 250, 0.22)'; // Google Workspace clean light
       }
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -75,20 +67,23 @@ export default function MatrixRainBackground() {
         const x = i * fontSize;
         const y = drops[i] * fontSize;
 
-        // Leading character is brighter
+        // Leading character is brighter / high-contrast
         if (Math.random() > 0.88) {
-          ctx.fillStyle = isDark ? '#ffffff' : '#0369a1';
+          ctx.fillStyle = isDark ? '#ffffff' : '#000000';
         } else {
-          // Matrix green / cyan for dark mode, subtle slate-cyan for light mode
+          // Dark mode: Authentic Matrix neon phosphor green
+          // Light mode: Clean black/charcoal
           ctx.fillStyle = isDark
-            ? i % 4 === 0
-              ? '#00b4d8' // Cyan
-              : i % 7 === 0
-              ? '#2ec4b6' // Teal
-              : '#00ff66' // Matrix neon green
+            ? i % 5 === 0
+              ? '#55ff99' // Light phosphor
+              : i % 8 === 0
+              ? '#a3ffc7' // Bright white-green tip
+              : '#00ff66' // Pure Matrix Neon Green
+            : i % 4 === 0
+            ? '#000000' // Pure Black
             : i % 3 === 0
-            ? 'rgba(2, 132, 199, 0.35)'
-            : 'rgba(13, 148, 136, 0.30)';
+            ? 'rgba(0, 0, 0, 0.85)' // Solid Dark Black
+            : 'rgba(0, 0, 0, 0.65)'; // Crisp Charcoal
         }
 
         ctx.fillText(text, x, y);
@@ -110,48 +105,13 @@ export default function MatrixRainBackground() {
     };
   }, [matrixEnabled, isDark]);
 
-  const toggleMatrix = () => {
-    setMatrixEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('io_it_matrix_enabled', String(next));
-      } catch {}
-      return next;
-    });
-  };
+  if (!matrixEnabled) return null;
 
   return (
-    <>
-      {matrixEnabled && (
-        <canvas
-          ref={canvasRef}
-          className="fixed inset-0 pointer-events-none z-0 opacity-40 dark:opacity-35 transition-opacity duration-300"
-          style={{ mixBlendMode: isDark ? 'screen' : 'multiply' }}
-        />
-      )}
-
-      {/* Floating mini Matrix toggle button at bottom right (above voice bar) */}
-      <button
-        onClick={toggleMatrix}
-        type="button"
-        title={matrixEnabled ? 'Disattiva sfondo Matrix' : 'Attiva sfondo Matrix'}
-        className={`fixed bottom-24 right-4 z-30 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold shadow-lg transition-all border backdrop-blur-md ${
-          matrixEnabled
-            ? isDark
-              ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/50 shadow-emerald-500/20'
-              : 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-sm'
-            : isDark
-            ? 'bg-[#1c2541]/90 text-gray-400 border-gray-700 hover:text-white'
-            : 'bg-white/90 text-slate-500 border-slate-300 hover:text-slate-900 shadow-sm'
-        }`}
-      >
-        <span
-          className={`w-2 h-2 rounded-full ${
-            matrixEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'
-          }`}
-        />
-        <span>MATRIX {matrixEnabled ? 'ON' : 'OFF'}</span>
-      </button>
-    </>
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none z-0 opacity-40 dark:opacity-45 transition-opacity duration-300"
+      style={{ mixBlendMode: isDark ? 'screen' : 'multiply' }}
+    />
   );
 }

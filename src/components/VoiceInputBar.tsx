@@ -87,29 +87,9 @@ export default function VoiceInputBar({ onAsk, isLoading }: VoiceInputBarProps) 
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 px-3 py-2.5 sm:px-6 shadow-2xl backdrop-blur-md transition-colors border-t-2
-      bg-white/95 border-cyan-600 shadow-slate-900/15
-      dark:bg-[#0b132b]/95 dark:border-cyan-500 dark:shadow-black/80">
+      bg-white/95 border-[#1a73e8] shadow-slate-900/15
+      dark:bg-[#08120c]/95 dark:border-[#00ff66]/50 dark:shadow-[0_-4px_25px_rgba(0,255,102,0.12)]">
       <div className="max-w-5xl mx-auto space-y-2">
-        {/* Quick prompt chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
-          <span className="text-[10px] uppercase font-bold shrink-0 flex items-center gap-1 text-cyan-700 dark:text-cyan-400">
-            <Sparkles className="w-3 h-3" />
-            Rapidi:
-          </span>
-          {quickChips.map((chip, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleChipClick(chip.query)}
-              disabled={isLoading}
-              className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] transition-colors border font-medium
-                bg-slate-100 hover:bg-cyan-50 text-slate-700 hover:text-cyan-800 border-slate-200
-                dark:bg-[#1c2541] dark:hover:bg-cyan-500/20 dark:text-gray-300 dark:hover:text-cyan-300 dark:border-gray-700 dark:hover:border-cyan-500/40"
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-
         {/* Search input bar */}
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <div className="relative flex-1 flex items-center">
@@ -117,12 +97,13 @@ export default function VoiceInputBar({ onAsk, isLoading }: VoiceInputBarProps) 
               type="text"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              placeholder={isListening ? '🎤 Sto ascoltando la tua domanda in italiano...' : 'Chiedi a Senior IT (es. 3CX No Service, Zucchetti bloccato, Spooler)...'}
+              placeholder={isListening ? '🎤 Sto ascoltando la tua domanda in italiano...' : 'Chiedi a IO-IT (es. 3CX No Service, Zucchetti bloccato, Spooler)...'}
               disabled={isLoading}
-              className={`w-full border text-xs sm:text-sm rounded-xl pl-3 pr-10 py-2.5 focus:outline-none transition-all font-sans ${
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
+              className={`w-full border-2 text-xs sm:text-sm rounded-xl pl-3 pr-10 py-2.5 focus:outline-none transition-all font-sans font-medium text-black dark:text-black bg-white dark:bg-white placeholder:text-slate-500 dark:placeholder:text-slate-500 caret-[#1a73e8] dark:caret-[#00ff66] ${
                 isListening
-                  ? 'border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-50 text-slate-900 dark:bg-[#162038] dark:text-white dark:border-emerald-400'
-                  : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-cyan-600 focus:bg-white dark:bg-[#1c2541] dark:border-cyan-500 dark:text-white dark:placeholder:text-gray-400 dark:focus:border-cyan-400'
+                  ? 'border-[#34a853] ring-2 ring-[#34a853]/30'
+                  : 'border-[#dadce0] dark:border-[#00ff66]/60 focus:border-[#1a73e8] dark:focus:border-[#00ff66] focus:ring-2 focus:ring-[#1a73e8]/20 dark:focus:ring-[#00ff66]/20'
               }`}
             />
 
@@ -133,8 +114,8 @@ export default function VoiceInputBar({ onAsk, isLoading }: VoiceInputBarProps) 
               title={isListening ? 'Ferma dettatura vocale' : 'Attiva dettatura vocale'}
               className={`absolute right-2 p-1.5 rounded-lg transition-all ${
                 isListening
-                  ? 'bg-emerald-500 text-white animate-pulse shadow-md'
-                  : 'text-slate-400 hover:text-cyan-700 hover:bg-cyan-50 dark:text-gray-400 dark:hover:text-cyan-300 dark:hover:bg-cyan-500/10'
+                  ? 'bg-[#34a853] dark:bg-[#00ff66] text-white dark:text-[#050b07] animate-pulse shadow-md'
+                  : 'text-slate-600 hover:text-[#1a73e8] hover:bg-slate-100 active:scale-95'
               }`}
             >
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -145,17 +126,37 @@ export default function VoiceInputBar({ onAsk, isLoading }: VoiceInputBarProps) 
             type="submit"
             disabled={!inputVal.trim() || isLoading}
             className="flex items-center gap-1.5 font-bold px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md
-              bg-cyan-600 hover:bg-cyan-700 text-white shadow-cyan-600/20
-              dark:bg-cyan-500 dark:hover:bg-cyan-400 dark:text-[#0b132b] dark:shadow-cyan-500/20"
+              bg-[#1a73e8] hover:bg-[#1557b0] text-white shadow-[#1a73e8]/20
+              dark:bg-[#00ff66] dark:hover:bg-[#33ff85] dark:text-[#050b07] dark:shadow-[0_0_15px_rgba(0,255,102,0.3)]"
           >
             {isLoading ? (
-              <span className="w-4 h-4 border-2 border-white dark:border-[#0b132b] border-t-transparent rounded-full animate-spin" />
+              <span className="w-4 h-4 border-2 border-white dark:border-[#050b07] border-t-transparent rounded-full animate-spin" />
             ) : (
               <Send className="w-4 h-4" />
             )}
             <span className="hidden sm:inline">Chiedi ➤</span>
           </button>
         </form>
+
+        {/* Quick prompt chips - placed on bottom / last row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 text-xs">
+          <span className="text-[10px] uppercase font-bold shrink-0 flex items-center gap-1 text-[#1a73e8] dark:text-[#00ff66]">
+            <Sparkles className="w-3 h-3 text-[#fbbc04] dark:text-[#00ff66]" />
+            Rapidi:
+          </span>
+          {quickChips.map((chip, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleChipClick(chip.query)}
+              disabled={isLoading}
+              className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] transition-colors border font-medium
+                bg-[#f1f3f4] hover:bg-[#e8f0fe] text-slate-700 hover:text-[#1967d2] border-[#dadce0] hover:border-[#aecbfa]
+                dark:bg-[#050c07] dark:hover:bg-[#00250d] dark:text-gray-300 dark:hover:text-[#00ff66] dark:border-[#00ff66]/30 dark:hover:border-[#00ff66]/60"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

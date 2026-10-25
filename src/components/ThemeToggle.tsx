@@ -3,30 +3,31 @@ import { Sun, Moon } from 'lucide-react';
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
     <button
       onClick={toggleTheme}
       type="button"
-      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 border shadow-sm
-        bg-white text-slate-700 hover:text-slate-900 border-slate-200 hover:border-slate-300 hover:bg-slate-50
-        dark:bg-[#0b132b] dark:text-cyan-300 dark:border-cyan-500/40 dark:hover:bg-[#141b30] dark:hover:text-cyan-200"
+      className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 border shadow-xs select-none
+        bg-white text-slate-700 hover:text-[#1a73e8] border-[#dadce0] hover:border-[#1a73e8] hover:bg-[#f8f9fa]
+        dark:bg-[#0b140e] dark:text-[#00ff66] dark:border-[#00ff66]/40 dark:hover:bg-[#102416] dark:hover:border-[#00ff66] dark:shadow-[0_0_8px_rgba(0,255,102,0.2)]"
       title={
-        theme === 'dark'
-          ? 'Passa al tema Chiaro (Ottimale per ambienti luminosi / ufficio)'
-          : 'Passa al tema Scuro (Ottimale per datacenter / sale server scarsamente illuminate)'
+        isDark
+          ? 'Tema Scuro attivo. Clicca per passare al Tema Chiaro'
+          : 'Tema Chiaro attivo. Clicca per passare al Tema Scuro'
       }
-      aria-label="Selettore Tema"
+      aria-label="Selettore Tema Chiaro / Scuro"
     >
-      {theme === 'dark' ? (
+      {isDark ? (
         <>
-          <Moon className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden md:inline font-mono text-[11px]">Datacenter</span>
+          <Moon className="w-3.5 h-3.5 text-[#00ff66]" />
+          <span className="font-mono text-[11px] text-[#00ff66]">Tema Scuro</span>
         </>
       ) : (
         <>
-          <Sun className="w-3.5 h-3.5 text-amber-500" />
-          <span className="hidden md:inline font-mono text-[11px]">Ufficio</span>
+          <Sun className="w-3.5 h-3.5 text-[#fbbc04]" />
+          <span className="font-sans text-[11px] text-slate-700 font-medium">Tema Chiaro</span>
         </>
       )}
     </button>
