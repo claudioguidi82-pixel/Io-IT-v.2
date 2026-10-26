@@ -1,0 +1,6 @@
+{
+  "summary":  "Rimozione completata della sezione Command Center / Dashboard Panoramica. L'applicazione ora atterra direttamente sui moduli tecnici operativi a partire da Hardware, Impianti & Reti, con navigazione diretta tramite Sidebar desktop e Drawer mobile.",
+  "updatedAt":  "2026-10-26T20:32:10.472774750Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

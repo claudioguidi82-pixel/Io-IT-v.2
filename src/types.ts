@@ -1,5 +1,18 @@
 export type CategoryType = 'hardware' | 'network' | '3cx' | 'zucchetti' | 'windows' | 'altro';
 
+export type ModuleId =
+  | 'overview'
+  | 'hardware'
+  | 'voip'
+  | 'zucchetti'
+  | 'windows'
+  | 'tools'
+  | 'networkHistory'
+  | 'systemLog'
+  | 'lavori'
+  | 'notes'
+  | 'dictionary';
+
 export interface NoteItem {
   id: string;
   title: string;

@@ -86,18 +86,24 @@ export default function SeniorItModal({
       }
 
       if (line.startsWith('### ')) {
+        const title = line.replace('### ', '');
         elements.push(
-          <h4 key={index} className="text-sm font-bold mt-3 mb-1.5 flex items-center gap-1.5 text-cyan-800 dark:text-cyan-300">
-            <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-            {line.replace('### ', '')}
-          </h4>
+          <div key={index} className="mt-4 mb-2 pb-1.5 border-b border-slate-200 dark:border-[#00ff66]/20 flex items-center justify-between">
+            <h4 className="text-sm font-bold flex items-center gap-2 text-[#1a73e8] dark:text-[#00ff66]">
+              <Sparkles className="w-3.5 h-3.5 text-[#fbbc04] dark:text-[#00ff66]" />
+              <span>{title}</span>
+            </h4>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-[#00250d] text-slate-600 dark:text-[#00ff66]/80 border border-slate-200 dark:border-[#00ff66]/30">
+              Analisi Approfondita
+            </span>
+          </div>
         );
         return;
       }
 
       if (line.startsWith('## ')) {
         elements.push(
-          <h3 key={index} className="text-base font-bold mt-3.5 mb-1.5 text-slate-900 dark:text-white">
+          <h3 key={index} className="text-base font-bold mt-4 mb-2 text-slate-900 dark:text-white border-l-4 border-[#1a73e8] dark:border-[#00ff66] pl-2.5">
             {line.replace('## ', '')}
           </h3>
         );
@@ -180,22 +186,29 @@ export default function SeniorItModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="senior-it-modal-card matrix-card-glow rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden transition-colors border
+      <div className="senior-it-modal-card matrix-card-glow rounded-2xl w-full max-w-3xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden transition-colors border
         bg-white border-[#dadce0] shadow-slate-900/20
-        dark:bg-[#09140c] dark:border-[#00ff66]/50 dark:shadow-[0_0_30px_rgba(0,255,102,0.18)]">
+        dark:bg-[#09140c] dark:border-[#00ff66]/30 dark:shadow-2xl dark:shadow-black">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b transition-colors
           bg-[#f8f9fa] border-[#dadce0]
-          dark:bg-[#050c07] dark:border-[#00ff66]/30">
+          dark:bg-[#050c07] dark:border-[#00ff66]/20">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center
               bg-[#e8f0fe] border border-[#aecbfa] text-[#1967d2]
-              dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66]">
+              dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66] shadow-xs">
               <Bot className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm flex items-center gap-2 text-slate-900 dark:text-white">
-                <span>IO-IT — Diagnosi & Soluzione</span>
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                  IO-IT — Diagnosi & Soluzione
+                </h3>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold
+                  bg-[#e8f0fe] border border-[#aecbfa] text-[#1a73e8]
+                  dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66]">
+                  ⚡ Livello Elevato / Enterprise
+                </span>
                 {source === 'gemini-3.8-flash' ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-mono
                     bg-[#e6f4ea] border border-[#ceead6] text-[#137333]
@@ -204,13 +217,13 @@ export default function SeniorItModal({
                   </span>
                 ) : (
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-mono
-                    bg-[#e8f0fe] border border-[#aecbfa] text-[#1967d2]
+                    bg-[#f1f3f4] border border-[#dadce0] text-slate-700
                     dark:bg-[#00220a] dark:border-[#00ff66]/40 dark:text-[#00ff66]">
                     Knowledge Engine
                   </span>
                 )}
-              </h3>
-              <p className="text-[11px] text-slate-500 dark:text-gray-400">Prontuario tecnico per sistemisti e tecnici sul campo</p>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5">Analisi architetturale, causa radice, triage strumentale e script esatti</p>
             </div>
           </div>
 
