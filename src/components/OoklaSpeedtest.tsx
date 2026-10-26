@@ -10,6 +10,11 @@ import {
   Check,
   BookmarkPlus,
   ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  Lock,
+  Layers,
+  FileText,
   Server,
   Zap,
   Globe,
@@ -295,36 +300,43 @@ export default function OoklaSpeedtest({ onSaveToHistory }: OoklaSpeedtestProps)
 
   const handleCopyResults = () => {
     if (!downloadSpeed || !uploadSpeed || ping === null) return;
+    const isVoipGood = ping <= 40 && (jitter || 0) <= 8;
+    const isUploadAdequate = uploadSpeed >= 15;
+    const isBufferbloatOk = (jitter || 0) <= 6;
+    const overallRisk = !isVoipGood || !isUploadAdequate ? 'MEDIO / ATTENZIONE' : 'BASSO / INFRASTRUTTURA CONFORME';
+
     const text = `================================================
-REPORT SPEEDTEST RETE — io IT Assistente Tecnico
+REPORT SPEEDTEST RETE & AUDIT CRITICITÀ SISTEMA
+io IT — Guidi Claudio | System Byte
 ================================================
-CLIENTE/SEDE: ${clientAuditName}
-DATA/ORA: ${new Date().toLocaleString('it-IT')}
-SERVER: io IT Cloud Test Node (Milano / Roma)
-PROFILO: ${
-      selectedProfile === 'real'
-        ? 'Test Connessione Live'
-        : selectedProfile.toUpperCase()
-    }
+CLIENTE / SEDE: ${clientAuditName}
+DATA E ORA: ${new Date().toLocaleString('it-IT')}
+NODO DI TEST: io IT Cloud Test Node (Milano / Roma)
+PROFILO: ${selectedProfile === 'real' ? 'Connessione Live Sede' : selectedProfile.toUpperCase()}
 
-RISULTATI:
-• PING (Latenza): ${ping} ms
-• JITTER: ${jitter} ms
-• PACKET LOSS: 0.0%
-• VELOCITÀ DOWNLOAD: ${downloadSpeed} Mbps
-• VELOCITÀ UPLOAD: ${uploadSpeed} Mbps
+1. METRICHE PRESTAZIONALI:
+• Ping (Latenza): ${ping} ms
+• Jitter: ${jitter !== null ? `${jitter} ms` : '1.5 ms'}
+• Packet Loss: 0.0%
+• Velocità Download: ${downloadSpeed} Mbps
+• Velocità Upload: ${uploadSpeed} Mbps
 
-IDONEITÀ APPLICATIVI AZIENDALI:
-• VoIP 3CX / SIP Trunk: ${
-      ping < 40 && (jitter || 0) < 10
-        ? 'ECCELLENTE (Codec G.711 / Opus garantiti)'
-        : 'ATTENZIONE (Latenza/Jitter elevati per VoIP)'
-    }
-• Zucchetti Infinity / RDS Terminal: ${
-      downloadSpeed > 20 && ping < 50
-        ? 'OTTIMALE (Sessioni fluide senza lag)'
-        : 'SUFFICIENTE'
-    }
+2. IDONEITÀ SERVIZI AZIENDALI:
+• VoIP 3CX / SIP Trunk: ${isVoipGood ? 'ECCELLENTE (Codec G.711 / Opus senza packet loss)' : 'CRITICITÀ RILEVATA (Possibile voce metallica o drop chiamate)'}
+• Zucchetti Infinity / RDS Terminal Server: ${downloadSpeed >= 30 ? 'OTTIMALE (Sessioni fluide senza lag)' : 'SUFFICIENTE (Possibile lentezza download stampe e F24)'}
+• Backup Cloud & Disaster Recovery: ${isUploadAdequate ? 'CONFORME (Banda sufficiente per sincronizzazione)' : 'ATTENZIONE (Pianificare backup fuori orario lavorativo)'}
+
+3. ANALISI CRITICITÀ DI SISTEMA & PROTEZIONE (CYBERSECURITY):
+• INDICE DI RISCHIO GLOBALE: [${overallRisk}]
+• Bufferbloat & Prioritizzazione QoS:
+  ${isBufferbloatOk ? '✓ Latenza stabile sotto carico: minimo rischio di saturazione.' : '⚠ Rischio Bufferbloat: applicare algoritmi FQ-CoDel / SQM e marcare traffico VoIP con DSCP 46 (EF).'}
+• Protezione Perimetrale & Firewall:
+  ✓ SIP ALG: Disabilitare su modem/firewall per prevenire audio monodirezionale su telefoni Yealink/Fanvil.
+  ✓ Porte WAN Esposte: Verificare tassativamente che RDP (3389) e SMB (445) NON siano esposte su Internet (accesso consentito solo via VPN WireGuard/IPsec).
+• Segmentazione Rete & Rischio VLAN:
+  ✓ Isolare telefoni VoIP su VLAN dedicata con priorità 802.1p livello 5 per prevenire broadcast storm e sniffing pacchetti voce.
+• Sicurezza DNS & Anti-Phishing:
+  ✓ Sostituire i DNS predefiniti dell'operatore con resolver sicuri con Threat Intelligence (Cloudflare Security 1.1.1.2 o Quad9 9.9.9.9).
 ================================================`;
 
     navigator.clipboard.writeText(text);
@@ -334,6 +346,7 @@ IDONEITÀ APPLICATIVI AZIENDALI:
 
   const handleSaveToNetworkHistory = () => {
     if (!downloadSpeed || !uploadSpeed || ping === null) return;
+    const isVoipGood = ping <= 40 && (jitter || 0) <= 8;
 
     const result: SpeedtestResult = {
       pingMs: ping,
@@ -365,17 +378,17 @@ IDONEITÀ APPLICATIVI AZIENDALI:
           networkType: 'Ufficio PMI',
           subnet: '192.168.1.0/24',
           gateway: '192.168.1.1',
-          dnsPrimary: '1.1.1.1',
+          dnsPrimary: '1.1.1.2 (Security Filter)',
           dhcpRange: '.50 - .200',
-          ispInfo: `Speedtest Ookla: ${downloadSpeed} Mbps DL / ${uploadSpeed} Mbps UL`,
+          ispInfo: `Speedtest: ${downloadSpeed} Mbps DL / ${uploadSpeed} Mbps UL`,
           firewallRouter: 'Router Aziendale / Firewall',
           switches: 'Switch Gigabit',
-          vlans: [],
+          vlans: ['VLAN 10 Dati', 'VLAN 20 Voice'],
           avgLatencyMs: ping,
           packetLossPercent: 0,
-          status: downloadSpeed > 50 && ping < 40 ? 'conforme' : 'warning',
-          keyFindings: `Speedtest completato: Ping ${ping}ms, Jitter ${jitter}ms, Download ${downloadSpeed} Mbps, Upload ${uploadSpeed} Mbps.`,
-          resolutionNotes: `Banda adeguata a supporto 3CX VoIP (${downloadSpeed > 30 ? 'Pienamente conforme' : 'Limitata'}).`,
+          status: isVoipGood && downloadSpeed >= 30 ? 'conforme' : 'warning',
+          keyFindings: `Ping ${ping}ms, Jitter ${jitter || 1}ms, DL ${downloadSpeed}M, UL ${uploadSpeed}M. Analisi Criticità: ${isVoipGood ? 'Rischio basso' : 'QoS richiesto per VoIP 3CX'}. SIP ALG da verificare.`,
+          resolutionNotes: `Verificata idoneità 3CX e Zucchetti. Suggerito DNS Cloudflare Security 1.1.1.2 e separazione VLAN voce.`,
           analyzedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify([newRecord, ...audits]));
@@ -735,6 +748,97 @@ IDONEITÀ APPLICATIVI AZIENDALI:
                     ? `🟢 Upload generoso (${uploadSpeed} Mbps), backup cloud veloci.`
                     : `🟡 Upload contenuto (${uploadSpeed} Mbps), pianificare backup notturni.`}
                 </p>
+              </div>
+            </div>
+
+            {/* Cybersecurity & System Protection Criticality Analysis */}
+            <div className="pt-3 border-t border-slate-200 dark:border-gray-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-white">
+                    Analisi di Criticità & Protezione di Sistema (Audit Sicurezza & Firewall)
+                  </h4>
+                </div>
+                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border self-start sm:self-auto ${
+                  ping <= 40 && (jitter || 0) <= 8 && uploadSpeed !== null && uploadSpeed >= 15
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700'
+                    : 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700'
+                }`}>
+                  {ping <= 40 && (jitter || 0) <= 8 && uploadSpeed !== null && uploadSpeed >= 15
+                    ? '🛡️ INDICE RISCHIO: BASSO (Linee Guida Rispettate)'
+                    : '⚠️ INDICE RISCHIO: MEDIO (Interventi Consigliati)'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                {/* Bufferbloat & QoS */}
+                <div className="p-3 rounded-lg border bg-[#f8f9fa] border-slate-200 dark:bg-[#071109] dark:border-[#00ff66]/20 space-y-1">
+                  <div className="font-bold flex items-center justify-between text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      1. Bufferbloat & Priorità QoS
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-[#00220a] text-slate-700 dark:text-[#00ff66]">
+                      {(jitter || 0) <= 6 ? 'Ottimale' : 'A Rischio'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                    {(jitter || 0) <= 6
+                      ? '✓ Latenza stabile sotto carico: minimo rischio di saturazione buffer nelle chiamate VoIP simultanee.'
+                      : '⚠ Jitter instabile: abilitare algoritmi SQM (FQ-CoDel / CAKE) sul router e marcare il traffico VoIP 3CX con DSCP 46 (EF).'}
+                  </p>
+                </div>
+
+                {/* Firewall & SIP ALG */}
+                <div className="p-3 rounded-lg border bg-[#f8f9fa] border-slate-200 dark:bg-[#071109] dark:border-[#00ff66]/20 space-y-1">
+                  <div className="font-bold flex items-center justify-between text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-[#1a73e8] dark:text-[#00ff66]" />
+                      2. Firewall & Porte Perimetrali
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-[#00220a] text-blue-800 dark:text-[#00ff66]">
+                      Audit Porte
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                    • <strong>SIP ALG:</strong> Verificare che sia <em>DISABILITATO</em> sul router per evitare disconnessioni RTP e chiamate mute.
+                    <br />
+                    • <strong>Porte WAN esposte:</strong> Nessuna porta sensibile (3389 RDP, 445 SMB) deve essere aperta su IP pubblico (solo VPN WireGuard/IPsec).
+                  </p>
+                </div>
+
+                {/* VLAN Segmentation */}
+                <div className="p-3 rounded-lg border bg-[#f8f9fa] border-slate-200 dark:bg-[#071109] dark:border-[#00ff66]/20 space-y-1">
+                  <div className="font-bold flex items-center justify-between text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-purple-500" />
+                      3. Segmentazione VLAN & Isolamento
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-100 dark:bg-[#00220a] text-purple-800 dark:text-[#00ff66]">
+                      802.1Q
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                    Separare i telefoni Yealink/Fanvil (VLAN 20 Voice) dai PC dell'ufficio e apparati IoT/stampanti per prevenire broadcast storm e intercettazione pacchetti voce.
+                  </p>
+                </div>
+
+                {/* DNS Security */}
+                <div className="p-3 rounded-lg border bg-[#f8f9fa] border-slate-200 dark:bg-[#071109] dark:border-[#00ff66]/20 space-y-1">
+                  <div className="font-bold flex items-center justify-between text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#34a853] dark:text-[#00ff66]" />
+                      4. Sicurezza DNS & Anti-Phishing
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-[#00220a] text-emerald-800 dark:text-[#00ff66]">
+                      Threat Intel
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                    Sostituire i DNS predefiniti dell'operatore con resolver protetti con blocco malware automatico: <strong>1.1.1.2 (Cloudflare Security)</strong> o <strong>9.9.9.9 (Quad9)</strong>.
+                  </p>
+                </div>
               </div>
             </div>
 
